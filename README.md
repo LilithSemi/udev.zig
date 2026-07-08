@@ -1,2 +1,3 @@
 # udev.zig
-udev reimplemented with zero C dependencies in Zig
+
+udev reimplemented with zero C dependencies in pure Zig.
