@@ -288,7 +288,7 @@ test "monitor builds Device from a udev-format message" {
     const hdr_size = 40;
     var buf: [hdr_size + props_str.len]u8 = undefined;
     @memcpy(buf[0..8], "libudev\x00");
-    std.mem.writeInt(u32, buf[8..12], 0xfeedcafe, .little);
+    std.mem.writeInt(u32, buf[8..12], 0xfeedcafe, .big);
     std.mem.writeInt(u32, buf[12..16], hdr_size, .little); // header_size
     std.mem.writeInt(u32, buf[16..20], hdr_size, .little); // properties_off
     std.mem.writeInt(u32, buf[20..24], @as(u32, props_str.len), .little); // properties_len

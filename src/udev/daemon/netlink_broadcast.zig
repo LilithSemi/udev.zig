@@ -88,7 +88,8 @@ pub fn serializeUdevMessage(
     const out = try gpa.alloc(u8, 40 + blob.items.len);
     errdefer gpa.free(out);
     @memcpy(out[0..8], "libudev\x00");
-    std.mem.writeInt(u32, out[8..][0..4], 0xfeedcafe, .little);
+    // Big-endian magic, matching systemd. The remaining header fields are native order.
+    std.mem.writeInt(u32, out[8..][0..4], 0xfeedcafe, .big);
     std.mem.writeInt(u32, out[12..][0..4], 40, .little);
     std.mem.writeInt(u32, out[16..][0..4], 40, .little);
     std.mem.writeInt(u32, out[20..][0..4], @intCast(blob.items.len), .little);

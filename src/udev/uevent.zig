@@ -75,7 +75,10 @@ pub fn parseUdev(buf: []const u8) ParseError!Parsed {
 
     if (!std.mem.eql(u8, buf[0..8], "libudev\x00")) return error.BadMagic;
 
-    const magic = std.mem.readInt(u32, buf[8..12], .little);
+    // systemd writes this field with htobe32 as a deliberate endianness marker, while
+    // header_size, properties_off and properties_len below stay in the sender native
+    // order. A little-endian read here rejects every real message from udevd.
+    const magic = std.mem.readInt(u32, buf[8..12], .big);
     if (magic != 0xfeedcafe) return error.BadMagic;
 
     const properties_off = std.mem.readInt(u32, buf[16..20], .little);
@@ -112,7 +115,7 @@ test "parseUdev validates magic header then parses props" {
     // off(40) + props.len(25) = 65 bytes, so the buffer needs to be [65]u8.
     var buf: [65]u8 = undefined;
     @memcpy(buf[0..8], "libudev\x00");
-    std.mem.writeInt(u32, buf[8..12], 0xfeedcafe, .little);
+    std.mem.writeInt(u32, buf[8..12], 0xfeedcafe, .big);
     const props = "ACTION=add\x00SUBSYSTEM=drm\x00";
     const off: u32 = 40;
     std.mem.writeInt(u32, buf[12..16], off, .little); // header_size
@@ -131,14 +134,14 @@ test "parseUdev rejects bad magic" {
 }
 
 test "parseUdev rejects a buffer shorter than the header" {
-    const buf = "libudev\x00\xce\xfa\xed\xfe"; // prefix + magic, but no header fields
+    const buf = "libudev\x00\xfe\xed\xca\xfe"; // prefix + magic, but no header fields
     try std.testing.expectError(error.Truncated, parseUdev(buf));
 }
 
 test "parseUdev rejects properties_off aliasing the header" {
     var buf: [40]u8 = [_]u8{0} ** 40;
     @memcpy(buf[0..8], "libudev\x00");
-    std.mem.writeInt(u32, buf[8..12], 0xfeedcafe, .little);
+    std.mem.writeInt(u32, buf[8..12], 0xfeedcafe, .big);
     std.mem.writeInt(u32, buf[16..20], 0, .little); // properties_off = 0 -> would leak header
     std.mem.writeInt(u32, buf[20..24], 4, .little);
     try std.testing.expectError(error.Malformed, parseUdev(&buf));
@@ -147,4 +150,30 @@ test "parseUdev rejects properties_off aliasing the header" {
 test "parseKernel rejects a first token with no '@'" {
     const buf = "noatsign\x00KEY=VALUE\x00";
     try std.testing.expectError(error.Malformed, parseKernel(buf));
+}
+
+test "parseUdev accepts a header captured from systemd-udevd" {
+    // The first 40 bytes are copied verbatim off netlink group 2 from systemd-udevd
+    // 261.2 on aarch64. They are here so this test cannot pass by agreeing with our
+    // own writer: the magic is big-endian on the wire and the rest is native order.
+    const header = [_]u8{
+        0x6c, 0x69, 0x62, 0x75, 0x64, 0x65, 0x76, 0x00, // "libudev\0"
+        0xfe, 0xed, 0xca, 0xfe, // magic
+        0x28, 0x00, 0x00, 0x00, // header_size = 40
+        0x28, 0x00, 0x00, 0x00, // properties_off = 40
+        0x00, 0x00, 0x00, 0x00, // properties_len, set below
+        0x01, 0x02, 0x00, 0x00, 0x05, 0x77, 0xc5, 0xe5, // subsystem + devtype filter hashes
+        0xb1, 0x02, 0x47, 0x65, 0x00, 0x00, 0x00, 0x00, // tag bloom hi + lo
+    };
+    const props = "ACTION=add\x00SUBSYSTEM=tty\x00DEVNAME=ttyACM0\x00";
+
+    var buf: [header.len + props.len]u8 = undefined;
+    @memcpy(buf[0..header.len], &header);
+    std.mem.writeInt(u32, buf[20..24], @as(u32, props.len), .little);
+    @memcpy(buf[header.len..], props);
+
+    const p = try parseUdev(&buf);
+    try std.testing.expectEqualStrings("add", p.props.get("ACTION").?);
+    try std.testing.expectEqualStrings("tty", p.props.get("SUBSYSTEM").?);
+    try std.testing.expectEqualStrings("ttyACM0", p.props.get("DEVNAME").?);
 }
