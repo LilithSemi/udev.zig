@@ -105,6 +105,8 @@ pub const Monitor = struct {
     source: Source,
     filter_arena: std.heap.ArenaAllocator,
     filters: std.ArrayListUnmanaged(Filter),
+    /// Count of netlink overflow reports, never reset. See `overflows()`.
+    overflows_: u64 = 0,
 
     pub const Filter = struct {
         subsystem: []const u8,
@@ -157,6 +159,22 @@ pub const Monitor = struct {
         return self.fd_;
     }
 
+    /// How many times the kernel has reported a receive-queue overflow on this socket.
+    /// Monotonic for the life of the Monitor.
+    ///
+    /// This counts overflow REPORTS, not lost events: the kernel says that it dropped
+    /// something, never how much. Poll it after each drain and treat any increase as
+    /// "an unknown number of uevents never arrived", then re-enumerate sysfs to find
+    /// what was missed.
+    ///
+    /// It is the only signal that exists for this loss. Netlink drops the NEWEST message
+    /// when the queue is full, so the events that do arrive are always a contiguous
+    /// prefix. Counting SEQNUM gaps therefore reports a clean stream while the tail of
+    /// a burst is missing.
+    pub fn overflows(self: *const Monitor) u64 {
+        return self.overflows_;
+    }
+
     /// Append a subsystem/devtype filter. An empty filter list passes all devices.
     /// Strings are duped into the monitor's arena.
     pub fn addMatchSubsystemDevtype(
@@ -191,6 +209,10 @@ pub const Monitor = struct {
     /// Non-blocking receive. Returns the next Device that passes the prefilter,
     /// or null when the socket is drained (EAGAIN/EWOULDBLOCK). Skips spoofed
     /// messages and non-device events transparently.
+    ///
+    /// A receive-queue overflow does not surface as an error here, because the socket
+    /// stays usable and stopping the drain would only lose more. Check `overflows()`
+    /// after the drain to learn whether events went missing.
     pub fn receiveDevice(self: *Monitor) !?Device {
         var recv_buf: [8192]u8 = undefined;
         while (true) {
@@ -201,7 +223,12 @@ pub const Monitor = struct {
             const n = sysRecvfrom(self.fd_, &recv_buf, linux.MSG.TRUNC, &sender, &sender_len) catch |err| switch (err) {
                 error.WouldBlock => return null,
                 error.Interrupted => continue, // signal mid-recv; retry
-                error.Overflow => continue, // netlink ring overflow, events lost; keep draining
+                error.Overflow => {
+                    // The socket stays usable, so keep draining. The count is the caller's
+                    // only way to learn that events were lost.
+                    self.overflows_ +|= 1;
+                    continue;
+                },
                 else => return err,
             };
 
@@ -347,4 +374,22 @@ test "monitor smoke: open kernel monitor and drain once" {
     // Non-blocking drain: null (empty) or a Device are both acceptable.
     var result = try mon.receiveDevice();
     if (result) |*dev| dev.deinit();
+}
+
+test "monitor starts with no overflows reported" {
+    var ctx = Context.init(std.testing.allocator, std.testing.io);
+    defer ctx.deinit();
+
+    var mon = Monitor.initNetlink(&ctx, .kernel) catch |err| switch (err) {
+        error.PermissionDenied => return,
+        else => return err,
+    };
+    defer mon.deinit();
+
+    try std.testing.expectEqual(@as(u64, 0), mon.overflows());
+
+    // Draining an empty socket must not invent an overflow.
+    var result = try mon.receiveDevice();
+    if (result) |*dev| dev.deinit();
+    try std.testing.expectEqual(@as(u64, 0), mon.overflows());
 }
