@@ -18,6 +18,6 @@ test "subsystemFromLink takes basename" {
 }
 
 test "Group values match kernel netlink group masks" {
-    try std.testing.expectEqual(@as(u32, 1), @intFromEnum(Group.kernel));
-    try std.testing.expectEqual(@as(u32, 2), @intFromEnum(Group.udev));
+    try std.testing.expectEqual(@as(u32, 1), @backingInt(Group.kernel));
+    try std.testing.expectEqual(@as(u32, 2), @backingInt(Group.udev));
 }

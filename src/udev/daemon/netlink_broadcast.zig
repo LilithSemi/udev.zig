@@ -134,7 +134,7 @@ pub const Broadcaster = struct {
     /// Send a serialized libudev message to the .udev multicast group.
     /// PermissionDenied (no CAP_NET_ADMIN) is surfaced so callers can tolerate it.
     pub fn send(self: *Broadcaster, buf: []const u8) !void {
-        var dest = udev_linux.nlAddr(@intFromEnum(udev_linux.Group.udev));
+        var dest = udev_linux.nlAddr(@backingInt(udev_linux.Group.udev));
         const rc = linux.sendto(
             self.fd_,
             buf.ptr,

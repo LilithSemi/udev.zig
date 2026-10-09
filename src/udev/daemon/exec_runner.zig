@@ -83,8 +83,8 @@ fn runProgramImpl(
 
     return switch (result.term) {
         .exited => |code| code,
-        .signal => |sig| @as(u8, @truncate(128 + @as(u32, @intFromEnum(sig)))),
-        .stopped => |sig| @as(u8, @truncate(128 + @as(u32, @intFromEnum(sig)))),
+        .signal => |sig| @as(u8, @truncate(128 + @as(u32, @backingInt(sig)))),
+        .stopped => |sig| @as(u8, @truncate(128 + @as(u32, @backingInt(sig)))),
         .unknown => 255,
     };
 }

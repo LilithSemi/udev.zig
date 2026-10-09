@@ -50,7 +50,7 @@
       treefmtEval = forAllSystems ({ pkgs, ... }: treefmt-nix.lib.evalModule pkgs (import ./treefmt.nix));
     in
     {
-      versionTemplate = "1.1pre-<lastModifiedDate>-<rev>";
+      versionTemplate = "0.1.0pre-<lastModifiedDate>-<rev>";
 
       devShells = forAllSystems (
         { pkgs, ... }:
@@ -58,7 +58,7 @@
           default = pkgs.mkShell {
             name = "udev-zig-dev-shell";
             packages = with pkgs; [
-              zig
+              zig_0_17
             ];
           };
         }
@@ -75,13 +75,13 @@
 
             src = lib.cleanSource ./.;
 
-            zigDeps = pkgs.zig.fetchDeps {
+            zigDeps = pkgs.zig_0_17.fetchDeps {
               inherit (finalAttrs) src pname version;
-              hash = "sha256-zzMq0QZ6Z3U4f1E/Jsz24oJGEIRWRjbycwTBpOac12Y=";
+              hash = "sha256-TLeU0z6olkdtAGwoZKTU5a1uNQQ1YdMgoBGUiiZbYPw=";
             };
 
             nativeBuildInputs = with pkgs; [
-              zig
+              zig_0_17
             ];
 
             postConfigure = ''

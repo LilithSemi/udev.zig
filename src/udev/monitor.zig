@@ -115,7 +115,7 @@ pub const Monitor = struct {
 
     /// Open a NETLINK_KOBJECT_UEVENT socket bound to the group for `source`.
     pub fn initNetlink(ctx: *Context, source: Source) !Monitor {
-        const group: u32 = @intFromEnum(
+        const group: u32 = @backingInt(
             if (source == .kernel) udev_linux.Group.kernel else udev_linux.Group.udev,
         );
         const sock_fd = try sysSocket(

@@ -163,7 +163,7 @@ pub fn cstr(bytes: []const u8, off: u64) FormatError![]const u8 {
 }
 
 test "readHeader parses a valid 80-byte header" {
-    var buf: [80]u8 = [_]u8{0} ** 80;
+    var buf: [80]u8 = @splat(0);
     @memcpy(buf[0..8], "KSLPHHRH");
     // field k (0-based) at offset 8 + k*8
     std.mem.writeInt(u64, buf[8..16], 260, .little); // tool_version
@@ -181,7 +181,7 @@ test "readHeader parses a valid 80-byte header" {
 }
 
 test "readHeader rejects bad signature and truncation" {
-    var buf: [80]u8 = [_]u8{0} ** 80;
+    var buf: [80]u8 = @splat(0);
     try std.testing.expectError(error.BadSignature, readHeader(&buf));
     @memcpy(buf[0..8], "KSLPHHRH");
     try std.testing.expectError(error.Truncated, readHeader(buf[0..40]));

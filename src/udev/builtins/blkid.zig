@@ -186,7 +186,7 @@ test "blkid: mapSuperblock ext4 fixture sets ID_FS_TYPE, ID_FS_LABEL, ID_FS_UUID
 
     // Build a minimal ext4 superblock in a 2048-byte buffer.
     // Magic at offset 1080-1081, incompat flags at 1120-1124, UUID at 1128-1144, label at 1144.
-    var buf = [_]u8{0} ** 2048;
+    var buf: [2048]u8 = @splat(0);
     buf[1080] = 0x53;
     buf[1081] = 0xEF;
     std.mem.writeInt(u32, buf[1120..1124], 0x40, .little); // EXTENTS -> ext4
@@ -277,7 +277,7 @@ test "blkid: mapPartitionTable DOS fixture sets ID_PART_TABLE_TYPE and ID_PART_T
     const gpa = std.testing.allocator;
 
     // DOS partition table fixture. Copied from blkid.zig's partitions/integration_test.zig.
-    var buf = [_]u8{0} ** 512;
+    var buf: [512]u8 = @splat(0);
     std.mem.writeInt(u32, buf[440..444], 0xdeadbeef, .little); // disk signature -> PTUUID="deadbeef"
     buf[446 + 4] = 0x83; // partition type: Linux
     std.mem.writeInt(u32, buf[454..458], 2048, .little); // LBA start

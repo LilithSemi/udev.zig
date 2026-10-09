@@ -128,7 +128,7 @@ test "parseUdev validates magic header then parses props" {
 }
 
 test "parseUdev rejects bad magic" {
-    var buf: [40]u8 = [_]u8{0} ** 40;
+    var buf: [40]u8 = @splat(0);
     @memcpy(buf[0..8], "libudev\x00");
     try std.testing.expectError(error.BadMagic, parseUdev(&buf));
 }
@@ -139,7 +139,7 @@ test "parseUdev rejects a buffer shorter than the header" {
 }
 
 test "parseUdev rejects properties_off aliasing the header" {
-    var buf: [40]u8 = [_]u8{0} ** 40;
+    var buf: [40]u8 = @splat(0);
     @memcpy(buf[0..8], "libudev\x00");
     std.mem.writeInt(u32, buf[8..12], 0xfeedcafe, .big);
     std.mem.writeInt(u32, buf[16..20], 0, .little); // properties_off = 0 -> would leak header

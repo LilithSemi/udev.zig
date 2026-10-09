@@ -1,12 +1,12 @@
 .{
     .name = .udev,
     .version = "0.1.0",
-    .minimum_zig_version = "0.16.0",
+    .minimum_zig_version = "0.17.0",
     .fingerprint = 0x9397a7a51ffb6665,
     .dependencies = .{
         .blkid = .{
-            .url = "git+https://github.com/Midstall/blkid.zig#55107444a271d70b7cf04cdcec1c25cccaad8f1f",
-            .hash = "blkid-0.1.0-_PU_8FvMAQAV5qAFosAMFZUdnjkULQAFjNzo3-WCvCkg",
+            .url = "git+https://git.lilithsemi.com/LilithSemi/blkid.zig#a02d934df94e0cd582f49dc5ee034927e36311ee",
+            .hash = "blkid-0.1.0-_PU_8LvMAQC4QsXLMvgPvF29K1ywO-xwyGnct58fJca5",
         },
     },
     .paths = .{ "build.zig.zon", "build.zig", "src", "tools" },
